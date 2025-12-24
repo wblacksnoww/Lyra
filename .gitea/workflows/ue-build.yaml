@@ -25,12 +25,26 @@ jobs:
       - name: Manual Checkout Code
         # 使用环境变量直接拉取本地 Gitea 的代码，不走 GitHub
         run: |
+          # 1. 清理目录
+          rm -rf .git
           git init
-          git remote add origin ${GITEA_SERVER_URL}/${GITEA_REPOSITORY}.git
-          # 使用 Gitea 内部授权 Token 拉取
-          git config --global http.extraheader "AUTHORIZATION: bearer ${{ secrets.GITHUB_TOKEN }}"
-          git fetch --depth 1 origin ${GITEA_SHA}
+          
+          # 2. 设置内部网络地址 (gitea 即为你的容器名)
+          # 注意：在容器内，我们直接连 gitea 的 3000 端口
+          INTERNAL_URL="http://gitea:3000/${{ gitea.repository }}.git"
+          
+          # 3. 注入认证信息并拉取
+          # 使用 Gitea 内部 Token 进行授权
+          git config --global http.sslVerify false
+          git fetch --depth 1 "http://${{ gitea.actor }}:${{ secrets.GITHUB_TOKEN }}@gitea:3000/${{ gitea.repository }}.git" ${{ gitea.sha }}
+          
+          # 4. 检出文件
           git checkout FETCH_HEAD
+          
+          # 5. 处理 LFS 大文件（虚幻引擎核心资源）
+          git lfs install
+          # 同样使用内部地址拉取 LFS 资产
+          git config lfs.url "http://gitea:3000/${{ gitea.repository }}.git/info/lfs"
           git lfs pull
 
       - name: Fix Engine Permissions
