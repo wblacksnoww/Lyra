@@ -1,34 +1,56 @@
 name: UE Automation Build
 run-name: ${{ gitea.actor }} is building the project
-on: [push] # 只要你 push 代码，就会触发构建
+on: [push]
 
 jobs:
   build-linux-job:
-    runs-on: ue-runner # 必须匹配刚才在 config.yaml 里设的标签
+    runs-on: ue-runner
     container:
-      image: gitea/runner-images:ubuntu-latest # 这是一个基础环境
-      # 核心：将宿主机的 UE 引擎目录挂载到容器的 /opt/UE 路径
+      image: gitea/runner-images:ubuntu-latest
+      # 将宿主机的引擎目录挂载到容器内部
       volumes:
-        - /media/blacksnow/devssd/code/UnrealEngine:/opt/UE
+        - /home/blacksnow/UnrealEngine:/opt/UE
     
     steps:
+      - name: Install System Dependencies
+        # 补全基础工具和 UE 编译必需的 .NET 运行环境
+        run: |
+          apt-get update
+          apt-get install -y git git-lfs wget apt-transport-https software-properties-common
+          # 下载并安装官方 .NET 脚本（针对 UE5 编译）
+          wget https://dot.net/v1/dotnet-install.sh -O dotnet-install.sh
+          chmod +x dotnet-install.sh
+          ./dotnet-install.sh --channel 6.0 --install-dir /usr/share/dotnet
+          ln -s /usr/share/dotnet/dotnet /usr/bin/dotnet
+          git lfs install
+
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
-          lfs: true # 自动拉取 Git LFS 资源（重要！）
+          lfs: true # 必须拉取 LFS 文件，否则 uproject 会因为找不到插件或资源而报错
+
+      - name: Fix Engine Permissions
+        # 核心：确保挂载进来的 RunUAT.sh 和相关二进制文件有执行权限
+        run: |
+          chmod +x /opt/UE/Engine/Build/BatchFiles/RunUAT.sh
+          chmod +x /opt/UE/Engine/Binaries/DotNET/UnrealBuildTool/UnrealBuildTool
+          chmod -R +x /opt/UE/Engine/Binaries/Linux/
 
       - name: Compile and Build
         run: |
-          # 调用挂载进来的引擎工具进行编译
+          # 检查项目名：请确保文件夹里那个 .uproject 文件的确叫 testLayr.uproject
           /opt/UE/Engine/Build/BatchFiles/RunUAT.sh \
           BuildCookRun \
-          -project="${{ github.workspace }}/MyProject.uproject" \
-          -targetplatform=Linux -clientconfig=Development \
+          -project="${{ github.workspace }}/testLayr.uproject" \
+          -targetplatform=Linux \
+          -clientconfig=Development \
           -build -cook -stage -archive \
-          -archivedirectory="${{ github.workspace }}/Saved/Builds"
+          -archivedirectory="${{ github.workspace }}/Saved/Builds" \
+          -noP4 -utf8output -nocompileeditor
 
-      - name: Upload Build Artifacts
+      - name: Upload Artifacts
         uses: actions/upload-artifact@v4
+        if: success() # 只有构建成功才会上传
         with:
           name: Game-Build-Linux
           path: Saved/Builds/
