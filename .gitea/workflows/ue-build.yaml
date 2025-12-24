@@ -1,0 +1,34 @@
+name: UE Automation Build
+run-name: ${{ gitea.actor }} is building the project
+on: [push] # 只要你 push 代码，就会触发构建
+
+jobs:
+  build-linux-job:
+    runs-on: ue-runner # 必须匹配刚才在 config.yaml 里设的标签
+    container:
+      image: gitea/runner-images:ubuntu-latest # 这是一个基础环境
+      # 核心：将宿主机的 UE 引擎目录挂载到容器的 /opt/UE 路径
+      volumes:
+        - /media/blacksnow/devssd/code/UnrealEngine:/opt/UE
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          lfs: true # 自动拉取 Git LFS 资源（重要！）
+
+      - name: Compile and Build
+        run: |
+          # 调用挂载进来的引擎工具进行编译
+          /opt/UE/Engine/Build/BatchFiles/RunUAT.sh \
+          BuildCookRun \
+          -project="${{ github.workspace }}/MyProject.uproject" \
+          -targetplatform=Linux -clientconfig=Development \
+          -build -cook -stage -archive \
+          -archivedirectory="${{ github.workspace }}/Saved/Builds"
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Game-Build-Linux
+          path: Saved/Builds/
