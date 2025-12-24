@@ -10,21 +10,28 @@ jobs:
       volumes:
         - /media/blacksnow/devssd/code/UnrealEngine:/opt/UE
     
-    steps: # 注意：steps 必须相对于 build-linux-job 缩进两格
+    steps:
       - name: Install System Dependencies
         run: |
           apt-get update
           apt-get install -y git git-lfs wget apt-transport-https software-properties-common
+          # 安装 .NET 6.0
           wget https://dot.net/v1/dotnet-install.sh -O dotnet-install.sh
           chmod +x dotnet-install.sh
           ./dotnet-install.sh --channel 6.0 --install-dir /usr/share/dotnet
           ln -s /usr/share/dotnet/dotnet /usr/bin/dotnet
           git lfs install
 
-      - name: Checkout Code
-        uses: actions/checkout@v4
-        with:
-          lfs: true
+      - name: Manual Checkout Code
+        # 使用环境变量直接拉取本地 Gitea 的代码，不走 GitHub
+        run: |
+          git init
+          git remote add origin ${GITEA_SERVER_URL}/${GITEA_REPOSITORY}.git
+          # 使用 Gitea 内部授权 Token 拉取
+          git config --global http.extraheader "AUTHORIZATION: bearer ${{ secrets.GITHUB_TOKEN }}"
+          git fetch --depth 1 origin ${GITEA_SHA}
+          git checkout FETCH_HEAD
+          git lfs pull
 
       - name: Fix Engine Permissions
         run: |
@@ -42,10 +49,3 @@ jobs:
           -build -cook -stage -archive \
           -archivedirectory="${{ github.workspace }}/Saved/Builds" \
           -noP4 -utf8output -nocompileeditor
-
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v4
-        if: success()
-        with:
-          name: Game-Build-Linux
-          path: Saved/Builds/
