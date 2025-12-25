@@ -51,6 +51,7 @@ jobs:
 
       - name: Compile and Build
         run: |
+          ls -F ${{ github.workspace }}
           /opt/UE/Engine/Build/BatchFiles/RunUAT.sh \
           BuildCookRun \
           -project="${{ github.workspace }}/testLayr.uproject" \
