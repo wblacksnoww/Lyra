@@ -25,20 +25,23 @@ jobs:
       - name: Manual Checkout Code
         # 使用环境变量直接拉取本地 Gitea 的代码，不走 GitHub
         run: |
-          # 1. 清理目录
-
           git init
           TARGET_IP="172.18.0.2"
           git config --global http.sslVerify false
-          # 彻底关闭压缩，因为是局域网，不需要 CPU 浪费时间去解压
-          git config --global core.compression 0
-          # 增加这一行，跳过 LFS 的预扫描（非常关键！）
-          git config --global lfs.fetchexclude "*"
-
-          echo "快速同步当前版本代码..."
-          # 使用 --depth 1 且不带子模块，只取当前 commit 的快照
+          
+          # 1. 先拉取基础代码结构
           git fetch --depth 1 "http://${{ gitea.actor }}:${{ secrets.GITHUB_TOKEN }}@${TARGET_IP}:3000/${{ gitea.repository }}.git" ${{ gitea.sha }}
           git checkout -f FETCH_HEAD
+          
+          # 2. 重新开启 LFS 并拉取（这是重点）
+          git lfs install
+          # 显式指定 LFS 地址，确保认证信息正确注入
+          git config lfs.url "http://${{ gitea.actor }}:${{ secrets.GITHUB_TOKEN }}@${TARGET_IP}:3000/${{ gitea.repository }}.git/info/lfs"
+          
+          echo "开始拉取 LFS 资源，这可能需要较长时间..."
+          # 限制并发为 4，既保证速度又防止死锁；增加 --progress 查看进度
+          git config --global lfs.concurrenttransfers 4
+          git lfs pull --progress
 
       - name: Check Files
         run: |
