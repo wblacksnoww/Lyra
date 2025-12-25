@@ -54,10 +54,26 @@ jobs:
 
       - name: Compile and Build
         run: |
-          ls -F ${{ github.workspace }}
+          # 1. 自动定位 .uproject 文件 (递归搜索)
+          # find 会在当前目录下寻找任何以 .uproject 结尾的文件
+          PROJECT_PATH=$(find ${{ github.workspace }} -name "*.uproject" -print -quit)
+          
+          echo "Checking directory structure:"
+          ls -R ${{ github.workspace }} | head -n 20
+          
+          echo "---------------------------------------"
+          if [ -z "$PROJECT_PATH" ]; then
+            echo "❌ 错误：在仓库中没找到 .uproject 文件！请检查 Git 是否成功拉取了内容。"
+            exit 1
+          else
+            echo "✅ 找到项目文件: $PROJECT_PATH"
+          fi
+          echo "---------------------------------------"
+
+          # 2. 使用找到的变量执行编译
           /opt/UE/Engine/Build/BatchFiles/RunUAT.sh \
           BuildCookRun \
-          -project="${{ github.workspace }}/testLayr.uproject" \
+          -project="$PROJECT_PATH" \
           -targetplatform=Linux \
           -clientconfig=Development \
           -build -cook -stage -archive \
