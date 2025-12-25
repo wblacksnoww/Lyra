@@ -30,13 +30,21 @@ jobs:
           git init
           TARGET_IP="172.18.0.2"
           
+          # 1. 极致优化 Git 参数
           git config --global http.sslVerify false
-          # 限制 LFS 并发数，防止卡死
-          git config --global lfs.concurrenttransfers 1
+          # 增大缓冲区到 500MB，防止大数据包导致中断
+          git config --global http.postBuffer 524288000
+          # 降低压缩率，减少 CPU 负担，加快局域网传输
+          git config --global core.compression 0
           
-          echo "开始拉取基础代码..."
-          git fetch --depth 1 "http://${{ gitea.actor }}:${{ secrets.GITHUB_TOKEN }}@${TARGET_IP}:3000/${{ gitea.repository }}.git" ${{ gitea.sha }}
+          echo "开始拉取基础代码 (带详细进度)..."
+          # 增加 --progress 强制显示进度，增加 --verbose 显示详细握手信息
+          git fetch --progress --verbose --depth 1 "http://${{ gitea.actor }}:${{ secrets.GITHUB_TOKEN }}@${TARGET_IP}:3000/${{ gitea.repository }}.git" ${{ gitea.sha }}
+          
           git checkout FETCH_HEAD
+          
+          # 先确认基础代码拉下来了，能看到 .uproject 为止
+          ls -R
           
           echo "开始拉取 LFS 资源 (显示进度)..."
           git lfs install
