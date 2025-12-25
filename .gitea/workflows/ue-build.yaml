@@ -28,20 +28,21 @@ jobs:
           # 1. 清理目录
 
           git init
-
           TARGET_IP="172.18.0.2"
           
           git config --global http.sslVerify false
+          # 限制 LFS 并发数，防止卡死
+          git config --global lfs.concurrenttransfers 1
           
-          # 使用 IP 地址进行 fetch
+          echo "开始拉取基础代码..."
           git fetch --depth 1 "http://${{ gitea.actor }}:${{ secrets.GITHUB_TOKEN }}@${TARGET_IP}:3000/${{ gitea.repository }}.git" ${{ gitea.sha }}
-          
           git checkout FETCH_HEAD
           
-          # 处理 LFS 大文件（虚幻引擎最关键的一步）
+          echo "开始拉取 LFS 资源 (显示进度)..."
           git lfs install
-          git config lfs.url "http://${TARGET_IP}:3000/${{ gitea.repository }}.git/info/lfs"
-          git lfs pull
+          # 明确指定 LFS 远程地址，并增加进度条显示
+          git config lfs.url "http://${{ gitea.actor }}:${{ secrets.GITHUB_TOKEN }}@${TARGET_IP}:3000/${{ gitea.repository }}.git/info/lfs"
+          git lfs pull --progress
 
       - name: Fix Engine Permissions
         run: |
