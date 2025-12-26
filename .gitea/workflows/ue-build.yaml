@@ -27,21 +27,25 @@ jobs:
         run: |
           git init
           TARGET_IP="172.18.0.2"
+          # 使用 Gitea 提供的 Token 构建带认证的 URL
+          AUTH_URL="http://${{ gitea.actor }}:${{ secrets.GITHUB_TOKEN }}@${TARGET_IP}:3000/${{ gitea.repository }}.git"
+
           git config --global http.sslVerify false
           
-          # 1. 先拉取基础代码结构
-          git fetch --depth 1 "http://${{ gitea.actor }}:${{ secrets.GITHUB_TOKEN }}@${TARGET_IP}:3000/${{ gitea.repository }}.git" ${{ gitea.sha }}
+          echo "1. 拉取基础代码..."
+          git fetch --depth 1 "$AUTH_URL" ${{ gitea.sha }}
           git checkout -f FETCH_HEAD
           
-          # 2. 重新开启 LFS 并拉取（这是重点）
+          echo "2. 配置 LFS 认证环境..."
           git lfs install
-          # 显式指定 LFS 地址，确保认证信息正确注入
-          git config lfs.url "http://${{ gitea.actor }}:${{ secrets.GITHUB_TOKEN }}@${TARGET_IP}:3000/${{ gitea.repository }}.git/info/lfs"
-          
-          echo "开始拉取 LFS 资源，这可能需要较长时间..."
-          # 限制并发为 4，既保证速度又防止死锁；增加 --progress 查看进度
-          git config --global lfs.concurrenttransfers 4
-          git lfs pull --progress
+          # 关键：直接将带认证的 URL 写入 lfs.url
+          git config lfs.url "$AUTH_URL/info/lfs"
+          # 增加这一行，强制 LFS 在当前上下文中使用该地址
+          git config lfs.transfer.maxretries 10
+
+          echo "3. 开始执行 LFS 资源下载 (显示详细进度)..."
+          # 使用 -I 和 -X 参数之外的最稳妥写法
+          git lfs pull origin
 
       - name: Check Files
         run: |
