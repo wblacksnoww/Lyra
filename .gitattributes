@@ -1,5 +1,5 @@
-*.uasset filter=lfs diff=lfs merge=lfs -text
-*.umap filter=lfs diff=lfs merge=lfs -text
+*.uasset filter=lfs diff=lfs merge=lfs -text lockable
+*.umap filter=lfs diff=lfs merge=lfs -text lockable
 
 # 优化: 将大量细碎的 ExternalActors 文件移出 LFS，改用普通 Git 存储以加速拉取
 **/__ExternalActors__/** filter= diff= merge= -text
