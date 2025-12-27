@@ -14,13 +14,30 @@ jobs:
       - name: Install System Dependencies
         run: |
           apt-get update
-          apt-get install -y git git-lfs wget apt-transport-https software-properties-common
+          apt-get install -y git git-lfs wget apt-transport-https software-properties-common iputils-ping
+          # 安装 UE 编译依赖
+          apt-get install -y build-essential clang cmake python3 libicu-dev libssl-dev zlib1g-dev
           # 安装 .NET 6.0
           wget https://dot.net/v1/dotnet-install.sh -O dotnet-install.sh
           chmod +x dotnet-install.sh
           ./dotnet-install.sh --channel 6.0 --install-dir /usr/share/dotnet
           ln -s /usr/share/dotnet/dotnet /usr/bin/dotnet
           git lfs install
+
+      - name: System Diagnostics (Network & I/O)
+        run: |
+          echo "📊 --- Disk Write Speed (DD) ---"
+          # 写入 512MB 数据测试磁盘写入速度 (oflag=direct 绕过缓存)
+          dd if=/dev/zero of=./speedtest.tmp bs=1M count=512 oflag=direct
+          rm ./speedtest.tmp
+
+          echo "🌐 --- Network Check to Gitea Host ---"
+          TARGET_IP="172.18.0.1"
+          ping -c 4 $TARGET_IP || echo "Ping failed"
+          
+          echo "⬇️ --- HTTP Connection Speed ---"
+          # 测试到 Gitea 端口的连接速度
+          curl -s -w "Connect: %{time_connect}s\nStartTransfer: %{time_starttransfer}s\nTotal: %{time_total}s\nSpeed: %{speed_download} bps\n" -o /dev/null http://$TARGET_IP:3000/ || echo "Curl failed"
 
       - name: Manual Checkout Code
         # 使用环境变量直接拉取本地 Gitea 的代码，不走 GitHub
@@ -62,11 +79,11 @@ jobs:
           echo "检查核心资产大小..."
           # 找一个项目里已知的大资产文件（比如某张贴图或模型）
           # 如果只有几百字节，说明 LFS 还是没拉下来
-          find . -name "*.uasset" -exec ls -lh {} + | head -n 20
+          find . -name "*.uasset" | head -n 20 | xargs ls -lh
       - name: Check Files
         run: |
           echo "当前工作目录内容："
-          ls -R | head -n 20
+          ls -R | head -n 20 || true
           find . -name "*.uproject"
           
       - name: Fix Engine Permissions
