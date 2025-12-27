@@ -126,6 +126,12 @@ jobs:
           chmod +x /opt/UE/Engine/Binaries/DotNET/UnrealBuildTool/UnrealBuildTool
           chmod -R +x /opt/UE/Engine/Binaries/Linux/
 
+      - name: Compile Project Editor (Skip Engine)
+        run: |
+          PROJECT_PATH=$(find ${{ github.workspace }} -name "*.uproject" -print -quit)
+          # 显式编译项目的 Editor Target，但不编译引擎
+          /opt/UE/Engine/Build/BatchFiles/Linux/Build.sh LyraEditor Linux Development -Project="$PROJECT_PATH" -WaitMutex -FromMsBuild
+
       - name: Compile and Build
         run: |
           PROJECT_PATH=$(find ${{ github.workspace }} -name "*.uproject" -print -quit)
@@ -137,7 +143,7 @@ jobs:
           -clientconfig=Development \
           -build -cook -stage -archive \
           -archivedirectory="${{ github.workspace }}/Saved/Builds" \
-          -noP4 -utf8output \
+          -noP4 -utf8output -nocompileeditor \
           -unattended -stdlog  # <--- 增加这两项来抓取详细 Cook 报错
 
       - name: Compress Build Artifacts
