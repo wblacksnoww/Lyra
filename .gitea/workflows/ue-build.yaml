@@ -139,3 +139,17 @@ jobs:
           -archivedirectory="${{ github.workspace }}/Saved/Builds" \
           -noP4 -utf8output \
           -unattended -stdlog  # <--- 增加这两项来抓取详细 Cook 报错
+
+      - name: Compress Build Artifacts
+        run: |
+          echo "📦 Compressing build artifacts..."
+          cd ${{ github.workspace }}/Saved/Builds
+          # 压缩 Linux 目录为 tar.gz
+          tar -czvf LyraGame-Linux.tar.gz Linux/
+
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: LyraGame-Linux-Build
+          path: ${{ github.workspace }}/Saved/Builds/LyraGame-Linux.tar.gz
+          if-no-files-found: error
