@@ -31,22 +31,41 @@ jobs:
           dd if=/dev/zero of=./speedtest.tmp bs=1M count=512 oflag=direct
           rm ./speedtest.tmp
 
-          echo "🌐 --- Network Check to Gitea Host ---"
-          TARGET_IP="172.18.0.1"
-          ping -c 4 $TARGET_IP || echo "Ping failed"
+          echo "🌐 --- Network Check ---"
+          # 尝试解析并 Ping 内部容器名 'gitea'
+          echo "Testing internal DNS 'gitea'..."
+          ping -c 2 gitea || echo "❌ Cannot resolve/ping 'gitea'"
           
-          echo "⬇️ --- HTTP Connection Speed ---"
-          # 测试到 Gitea 端口的连接速度
-          curl -s -w "Connect: %{time_connect}s\nStartTransfer: %{time_starttransfer}s\nTotal: %{time_total}s\nSpeed: %{speed_download} bps\n" -o /dev/null http://$TARGET_IP:3000/ || echo "Curl failed"
+          echo "Testing Gateway IP '172.18.0.1'..."
+          ping -c 2 172.18.0.1 || echo "❌ Cannot ping Gateway"
+          
+          echo "⬇️ --- HTTP Connection Speed (Internal) ---"
+          # 优先尝试使用内部容器名
+          if ping -c 1 gitea >/dev/null 2>&1; then
+            TEST_HOST="gitea"
+          else
+            TEST_HOST="172.18.0.1"
+          fi
+          echo "Testing speed to: $TEST_HOST"
+          curl -s -w "Connect: %{time_connect}s\nSpeed: %{speed_download} bps\n" -o /dev/null http://$TEST_HOST:3000/ || echo "Curl failed"
 
       - name: Manual Checkout Code
         # 使用环境变量直接拉取本地 Gitea 的代码，不走 GitHub
         run: |
           # --- 准备工作 ---
           git init
-          TARGET_IP="172.18.0.1"
+          
+          # 自动检测最佳连接地址
+          if ping -c 1 gitea >/dev/null 2>&1; then
+            echo "✅ Detected internal network, using hostname 'gitea'"
+            TARGET_HOST="gitea"
+          else
+            echo "⚠️ Internal network unreachable, falling back to Gateway IP"
+            TARGET_HOST="172.18.0.1"
+          fi
+          
           # 构造带 Token 的 URL
-          AUTH_URL="http://${{ gitea.actor }}:${{ secrets.GITHUB_TOKEN }}@${TARGET_IP}:3000/${{ gitea.repository }}.git"
+          AUTH_URL="http://${{ gitea.actor }}:${{ secrets.GITHUB_TOKEN }}@${TARGET_HOST}:3000/${{ gitea.repository }}.git"
 
           # --- 关键优化 1: 禁用 Checkout 时的 LFS 自动下载 ---
           # 这行命令能把 3 小时的等待变成 3 秒！我们稍后手动拉取资源。
