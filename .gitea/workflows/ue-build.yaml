@@ -137,5 +137,5 @@ jobs:
           -clientconfig=Development \
           -build -cook -stage -archive \
           -archivedirectory="${{ github.workspace }}/Saved/Builds" \
-          -noP4 -utf8output -nocompileeditor \
+          -noP4 -utf8output \
           -unattended -stdlog  # <--- 增加这两项来抓取详细 Cook 报错
