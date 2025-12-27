@@ -9,6 +9,8 @@ jobs:
       image: gitea/runner-images:ubuntu-latest
       volumes:
         - /media/blacksnow/devssd/code/UnrealEngine:/opt/UE
+        # 挂载宿主机的 LFS 缓存 (只读)，避免重复下载 8GB 数据
+        - /home/blacksnow/Documents/Unreal Projects/testLayr/.git/lfs:/mnt/host-lfs:ro
     
     steps:
       - name: Install System Dependencies
@@ -93,6 +95,15 @@ jobs:
           git config lfs.locksverify false
           # 增加超时容忍
           git config lfs.activitytimeout 120
+
+          # --- 优化 0: 从宿主机恢复 LFS 缓存 ---
+          if [ -d "/mnt/host-lfs/objects" ]; then
+            echo "⚡ 检测到本地 LFS 缓存，正在复制..."
+            mkdir -p .git/lfs
+            # 使用 cp -n 跳过已存在的文件，-r 递归
+            cp -rn /mnt/host-lfs/objects .git/lfs/
+            echo "✅ LFS 缓存恢复完成"
+          fi
 
           echo "📦 3. 开始高速下载 LFS 资源 (带进度条)..."
           # 这次下载会有详细的进度显示
