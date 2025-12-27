@@ -66,10 +66,14 @@ jobs:
           git lfs install
           # 显式指定 LFS 接口地址
           git config lfs.url "$AUTH_URL/info/lfs"
-          # 开启 8 线程并发下载 (根据你的服务器性能调整)
-          git config lfs.concurrenttransfers 8
+          # 优化 1: 降低并发，避免服务端过载 (从 8 降为 4)
+          git config lfs.concurrenttransfers 4
+          # 优化 2: 增大 HTTP 缓冲区，减少分包
+          git config http.postBuffer 524288000
+          # 优化 3: 禁用 LFS 锁校验，减少 API 请求
+          git config lfs.locksverify false
           # 增加超时容忍
-          git config lfs.activitytimeout 60
+          git config lfs.activitytimeout 120
 
           echo "📦 3. 开始高速下载 LFS 资源 (带进度条)..."
           # 这次下载会有详细的进度显示
