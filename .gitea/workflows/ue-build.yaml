@@ -18,7 +18,7 @@ jobs:
           apt-get update
           apt-get install -y git git-lfs wget apt-transport-https software-properties-common iputils-ping
           # 安装 UE 编译依赖 (新增 libnss3 等运行时库)
-          apt-get install -y build-essential clang cmake python3 libicu-dev libssl-dev zlib1g-dev libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libasound2
+          apt-get install -y build-essential clang cmake python3 libicu-dev libssl-dev zlib1g-dev libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libasound2t64
           # 安装 .NET 6.0
           wget https://dot.net/v1/dotnet-install.sh -O dotnet-install.sh
           chmod +x dotnet-install.sh
