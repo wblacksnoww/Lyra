@@ -26,6 +26,12 @@ jobs:
           ln -s /usr/share/dotnet/dotnet /usr/bin/dotnet
           git lfs install
 
+          # 创建非 root 用户 (UID 1000) 以运行 UE (UE 不允许 root 运行 Cook)
+          # 如果用户已存在则忽略错误
+          id -u ueuser &>/dev/null || useradd -m -u 1000 ueuser
+          # 赋予 workspace 权限 (虽然通常挂载时已经是 1000)
+          chown -R ueuser:ueuser . || true
+
       - name: System Diagnostics (Network & I/O)
         run: |
           echo "📊 --- Disk Write Speed (DD) ---"
@@ -128,12 +134,20 @@ jobs:
 
       - name: Compile Project Editor (Skip Engine)
         run: |
+          # 切换到 ueuser 运行，避免 root 权限问题
+          chown -R ueuser:ueuser . || true
+          su ueuser << 'EOF'
+          export PATH=$PATH:/usr/bin/dotnet
           PROJECT_PATH=$(find ${{ github.workspace }} -name "*.uproject" -print -quit)
           # 显式编译项目的 Editor Target，但不编译引擎
           /opt/UE/Engine/Build/BatchFiles/Linux/Build.sh LyraEditor Linux Development -Project="$PROJECT_PATH" -WaitMutex -FromMsBuild
+          EOF
 
       - name: Compile and Build
         run: |
+          # 切换到 ueuser 运行
+          su ueuser << 'EOF'
+          export PATH=$PATH:/usr/bin/dotnet
           PROJECT_PATH=$(find ${{ github.workspace }} -name "*.uproject" -print -quit)
           
           /opt/UE/Engine/Build/BatchFiles/RunUAT.sh \
@@ -144,7 +158,8 @@ jobs:
           -build -cook -stage -archive \
           -archivedirectory="${{ github.workspace }}/Saved/Builds" \
           -noP4 -utf8output -nocompileeditor \
-          -unattended -stdlog  # <--- 增加这两项来抓取详细 Cook 报错
+          -unattended -stdlog
+          EOF
 
       - name: Compress Build Artifacts
         run: |
