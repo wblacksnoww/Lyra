@@ -57,7 +57,12 @@ jobs:
           echo "📦 3. 开始高速下载 LFS 资源 (带进度条)..."
           # 这次下载会有详细的进度显示
           git lfs pull origin
-
+      - name: Verify LFS Assets
+        run: |
+          echo "检查核心资产大小..."
+          # 找一个项目里已知的大资产文件（比如某张贴图或模型）
+          # 如果只有几百字节，说明 LFS 还是没拉下来
+          find . -name "*.uasset" -exec ls -lh {} + | head -n 20
       - name: Check Files
         run: |
           echo "当前工作目录内容："
@@ -72,23 +77,8 @@ jobs:
 
       - name: Compile and Build
         run: |
-          # 1. 自动定位 .uproject 文件 (递归搜索)
-          # find 会在当前目录下寻找任何以 .uproject 结尾的文件
           PROJECT_PATH=$(find ${{ github.workspace }} -name "*.uproject" -print -quit)
           
-          echo "Checking directory structure:"
-          ls -R ${{ github.workspace }} | head -n 20
-          
-          echo "---------------------------------------"
-          if [ -z "$PROJECT_PATH" ]; then
-            echo "❌ 错误：在仓库中没找到 .uproject 文件！请检查 Git 是否成功拉取了内容。"
-            exit 1
-          else
-            echo "✅ 找到项目文件: $PROJECT_PATH"
-          fi
-          echo "---------------------------------------"
-
-          # 2. 使用找到的变量执行编译
           /opt/UE/Engine/Build/BatchFiles/RunUAT.sh \
           BuildCookRun \
           -project="$PROJECT_PATH" \
@@ -96,4 +86,5 @@ jobs:
           -clientconfig=Development \
           -build -cook -stage -archive \
           -archivedirectory="${{ github.workspace }}/Saved/Builds" \
-          -noP4 -utf8output -nocompileeditor
+          -noP4 -utf8output -nocompileeditor \
+          -unattended -stdlog  # <--- 增加这两项来抓取详细 Cook 报错
