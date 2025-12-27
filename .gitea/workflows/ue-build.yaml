@@ -27,7 +27,7 @@ jobs:
         run: |
           # --- 准备工作 ---
           git init
-          TARGET_IP="172.18.0.2"
+          TARGET_IP="172.18.0.1"
           # 构造带 Token 的 URL
           AUTH_URL="http://${{ gitea.actor }}:${{ secrets.GITHUB_TOKEN }}@${TARGET_IP}:3000/${{ gitea.repository }}.git"
 
