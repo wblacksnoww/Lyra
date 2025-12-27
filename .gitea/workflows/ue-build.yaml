@@ -25,26 +25,37 @@ jobs:
       - name: Manual Checkout Code
         # 使用环境变量直接拉取本地 Gitea 的代码，不走 GitHub
         run: |
+          # --- 准备工作 ---
           git init
           TARGET_IP="172.18.0.2"
-          # 使用 Gitea 提供的 Token 构建带认证的 URL
+          # 构造带 Token 的 URL
           AUTH_URL="http://${{ gitea.actor }}:${{ secrets.GITHUB_TOKEN }}@${TARGET_IP}:3000/${{ gitea.repository }}.git"
 
-          git config --global http.sslVerify false
-          
-          echo "1. 拉取基础代码..."
-          git fetch --depth 1 "$AUTH_URL" ${{ gitea.sha }}
-          git checkout -f FETCH_HEAD
-          
-          echo "2. 配置 LFS 认证环境..."
-          git lfs install
-          # 关键：直接将带认证的 URL 写入 lfs.url
-          git config lfs.url "$AUTH_URL/info/lfs"
-          # 增加这一行，强制 LFS 在当前上下文中使用该地址
-          git config lfs.transfer.maxretries 10
+          # --- 关键优化 1: 禁用 Checkout 时的 LFS 自动下载 ---
+          # 这行命令能把 3 小时的等待变成 3 秒！我们稍后手动拉取资源。
+          export GIT_LFS_SKIP_SMUDGE=1
 
-          echo "3. 开始执行 LFS 资源下载 (显示详细进度)..."
-          # 使用 -I 和 -X 参数之外的最稳妥写法
+          # --- 关键修正 2: 添加 origin ---
+          # 先添加远程仓库，这样 git lfs pull origin 就不报错了
+          git remote add origin "$AUTH_URL"
+
+          # --- 拉取代码 ---
+          echo "🚀 1. 极速拉取代码 (不含大文件)..."
+          git fetch --depth 1 origin ${{ gitea.sha }}
+          git checkout FETCH_HEAD
+
+          # --- 手动拉取 LFS ---
+          echo "🔧 2. 配置 LFS 加速..."
+          git lfs install
+          # 显式指定 LFS 接口地址
+          git config lfs.url "$AUTH_URL/info/lfs"
+          # 开启 8 线程并发下载 (根据你的服务器性能调整)
+          git config lfs.concurrenttransfers 8
+          # 增加超时容忍
+          git config lfs.activitytimeout 60
+
+          echo "📦 3. 开始高速下载 LFS 资源 (带进度条)..."
+          # 这次下载会有详细的进度显示
           git lfs pull origin
 
       - name: Check Files
