@@ -197,3 +197,5 @@ jobs:
           files: ${{ github.workspace }}/Saved/Builds/LyraGame-Linux.tar.gz
           draft: false
           prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # 必须加上这个，否则无法上传文件到 Release
