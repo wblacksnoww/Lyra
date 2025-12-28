@@ -180,21 +180,21 @@ jobs:
         run: |
           echo "📦 Compressing build artifacts..."
           cd ${{ github.workspace }}/Saved/Builds
-          # 压缩 Linux 目录为 tar.gz
-          tar -czvf LyraGame-Linux.tar.gz Linux/
+          # 压缩 Linux 目录为 tar.gz，并按 1.5GB 切分，避免 Release 上传限制
+          tar -czvf - Linux/ | split -b 1500M - LyraGame-Linux.tar.gz.
 
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v3
         with:
           name: LyraGame-Linux-Build
-          path: ${{ github.workspace }}/Saved/Builds/LyraGame-Linux.tar.gz
+          path: ${{ github.workspace }}/Saved/Builds/LyraGame-Linux.tar.gz.*
           if-no-files-found: error
 
       - name: Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: ${{ github.workspace }}/Saved/Builds/LyraGame-Linux.tar.gz
+          files: ${{ github.workspace }}/Saved/Builds/LyraGame-Linux.tar.gz.*
           draft: false
           prerelease: false
         env:
